@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#11100e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Repertoire">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>MY REPERTOIRE</title>
+<style>
+:root{color-scheme:dark;--bg:#100f0d;--panel:#1b1915;--line:#51432d;--gold:#d2b477;--muted:#aaa092}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f5f0e7;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom)}
+main{max-width:720px;margin:auto;padding:18px 0 36px}.hero{padding:23px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(135deg,#282219,#12110f)}
+.eyebrow{font-size:10px;letter-spacing:3px;color:var(--gold)}h1{font-size:26px;letter-spacing:4px;color:var(--gold);margin:12px 0 5px}.sub{color:var(--muted);font-size:12px}
+.stats{display:flex;gap:22px;margin-top:20px}.stat b{display:block;color:var(--gold);font-size:20px}.stat span{font-size:11px;color:var(--muted)}
+nav{display:flex;gap:4px;margin:17px 0;border-bottom:1px solid #393229}nav button{flex:1;background:none;border:0;color:var(--muted);padding:12px 3px;font-size:12px}nav button.active{color:var(--gold);border-bottom:2px solid var(--gold)}
+.panel{background:var(--panel);border:1px solid #393229;border-radius:14px;padding:14px;margin:10px 0}
+input,textarea,select{width:100%;background:#11100e;color:#fff;border:1px solid #51432d;border-radius:10px;padding:12px;font:inherit;margin:5px 0 12px}textarea{min-height:145px;resize:vertical}
+label{display:block;color:var(--gold);font-size:12px;margin-top:8px}.btn{border:1px solid var(--gold);background:transparent;color:var(--gold);border-radius:10px;padding:11px 13px;font-size:14px}.primary{background:var(--gold);color:#17130d;border:0;font-weight:700;width:100%;padding:14px;border-radius:10px}
+.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}.song{display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;width:100%;background:var(--panel);border:1px solid #393229;color:#fff;border-radius:13px;padding:14px;margin:6px 0}.song small{display:block;color:var(--muted);margin-top:5px}.gold{color:var(--gold)}.hidden{display:none!important}.muted{color:var(--muted);font-size:13px}.audio{width:100%;margin:8px 0}.lyrics{white-space:pre-wrap;line-height:1.8;font-size:18px}.danger{color:#e7a09a;border-color:#8d514b}.notice{border-left:3px solid var(--gold);padding:9px 12px;color:var(--muted);font-size:12px;margin:12px 0}
+</style>
+</head>
+<body><main>
+<header class="hero"><div class="eyebrow">PERSONAL MUSIC LIBRARY</div><h1>MY REPERTOIRE</h1><div class="sub">ТВОЯ МУЗЫКА. ТВОЯ СЦЕНА.</div>
+<div class="stats"><div class="stat"><b id="songCount">0</b><span>ПЕСЕН</span></div><div class="stat"><b id="audioCount">0</b><span>АУДИОФАЙЛОВ</span></div><div class="stat"><b id="lyricCount">0</b><span>ТЕКСТОВ</span></div></div></header>
+<nav><button class="active" data-page="library">МОИ ПЕСНИ</button><button data-page="add">＋ ДОБАВИТЬ</button><button data-page="backup">КОПИЯ</button></nav>
+<section id="library">
+<input id="search" placeholder="⌕  Найти песню или исполнителя">
+<div id="songs"></div><p id="empty" class="muted">Пока нет песен. Добавь первую композицию.</p>
+</section>
+<section id="add" class="hidden">
+<div class="panel"><h3 class="gold">Новая песня</h3>
+<label>Название песни *</label><input id="title" placeholder="Название">
+<label>Исполнитель</label><input id="artist" placeholder="Исполнитель">
+<label>Тональность</label><input id="key" placeholder="Например, Am">
+<label>Текст песни</label><textarea id="lyrics" placeholder="Вставь текст песни..."></textarea>
+<label>Минусовка</label><input id="minus" type="file" accept="audio/*">
+<label>Плюсовка</label><input id="plus" type="file" accept="audio/*">
+<div class="notice">Файлы сохраняются на этом устройстве. Большие аудиозаписи занимают память iPhone. Не закрывай страницу во время сохранения.</div>
+<button id="save" class="primary">СОХРАНИТЬ ПЕСНЮ</button><p id="message" class="muted"></p></div>
+</section>
+<section id="detail" class="hidden">
+<button id="back" class="btn">← К списку</button>
+<div class="panel"><h2 id="dTitle" class="gold"></h2><div id="dArtist" class="muted"></div><div id="dKey" class="muted"></div></div>
+<div class="panel"><h3 class="gold">♫ МИНУСОВКА</h3><div id="dMinus" class="muted">Не добавлена</div><h3 class="gold">♫ ПЛЮСОВКА</h3><div id="dPlus" class="muted">Не добавлена</div></div>
+<div class="panel"><h3 class="gold">ТЕКСТ ПЕСНИ</h3><div id="dLyrics" class="lyrics"></div></div>
+<button id="delete" class="btn danger">Удалить песню</button>
+</section>
+<section id="backup" class="hidden">
+<div class="panel"><h3 class="gold">Резервная копия</h3><p class="muted">Экспортируй библиотеку вместе с аудио и текстами в один файл. Храни копию отдельно, например в iCloud Drive.</p><button id="export" class="primary">СОЗДАТЬ РЕЗЕРВНУЮ КОПИЮ</button>
+<label>Восстановить из копии</label><input id="importFile" type="file" accept=".json,application/json"><button id="import" class="btn">Восстановить библиотеку</button><p id="backupMsg" class="muted"></p></div>
+</section>
+<footer class="muted" style="text-align:center;margin-top:25px">MY REPERTOIRE · ЛИЧНАЯ БИБЛИОТЕКА</footer>
+</main>
+<script>
+const DB='my-repertoire-v1', STORE='songs';let db,current=null;
+const $=id=>document.getElementById(id);
+function openDB(){return new Promise((resolve,reject)=>{let r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore(STORE,{keyPath:'id'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+function tx(mode='readonly'){return db.transaction(STORE,mode).objectStore(STORE)}
+function all(){return new Promise((res,rej)=>{let r=tx().getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+function save(s){return new Promise((res,rej)=>{let r=tx('readwrite').put(s);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)})}
+function remove(id){return new Promise((res,rej)=>{let r=tx('readwrite').delete(id);r.onsuccess=()=>res();r.onerror=()=>rej(r.error)})}
+function page(name){['library','add','detail','backup'].forEach(p=>$(p).classList.toggle('hidden',p!==name));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>page(b.dataset.page));
+function audioEl(blob){let a=document.createElement('audio');a.controls=true;a.preload='metadata';a.className='audio';a.src=URL.createObjectURL(blob);return a}
+async function refresh(){let list=await all(),q=$('search').value.toLowerCase();$('songCount').textContent=list.length;$('audioCount').textContent=list.reduce((n,s)=>n+(s.minus?1:0)+(s.plus?1:0),0);$('lyricCount').textContent=list.filter(s=>s.lyrics.trim()).length;
+let shown=list.filter(s=>(s.title+' '+s.artist).toLowerCase().includes(q));$('songs').replaceChildren();$('empty').classList.toggle('hidden',shown.length>0);
+shown.sort((a,b)=>a.title.localeCompare(b.title,'ru')).forEach(s=>{let b=document.createElement('button');b.className='song';let left=document.createElement('span');let title=document.createElement('b');title.textContent=s.title;let small=document.createElement('small');small.textContent=[s.artist,s.key].filter(Boolean).join(' · ');left.append(title,small);let right=document.createElement('span');right.className='gold';right.textContent='♪';b.append(left,right);b.onclick=()=>showSong(s);$('songs').append(b)})}
+function showSong(s){current=s;$('dTitle').textContent=s.title;$('dArtist').textContent=s.artist||'';$('dKey').textContent=s.key?'Тональность: '+s.key:'';$('dLyrics').textContent=s.lyrics||'Текст не добавлен';['Minus','Plus'].forEach((k,i)=>{let el=$('d'+k);el.replaceChildren();let blob=i?s.plus:s.minus;if(blob)el.append(audioEl(blob));else el.textContent='Не добавлена'});page('detail')}
+$('back').onclick=()=>page('library');$('search').oninput=refresh;
+$('save').onclick=async()=>{let title=$('title').value.trim();if(!title){$('message').textContent='Введи название песни.';return}let btn=$('save');btn.disabled=true;btn.textContent='СОХРАНЯЮ…';try{let s={id:crypto.randomUUID(),title,artist:$('artist').value.trim(),key:$('key').value.trim(),lyrics:$('lyrics').value,minus:$('minus').files[0]||null,plus:$('plus').files[0]||null,created:Date.now()};await save(s);['title','artist','key','lyrics','minus','plus'].forEach(id=>$(id).value='');$('message').textContent='Песня сохранена на этом устройстве.';await refresh();page('library')}catch(e){$('message').textContent='Не удалось сохранить. Проверь свободное место на iPhone.';console.error(e)}finally{btn.disabled=false;btn.textContent='СОХРАНИТЬ ПЕСНЮ'}};
+$('delete').onclick=async()=>{if(current&&confirm('Удалить песню и её аудиофайлы?')){await remove(current.id);current=null;await refresh();page('library')}};
+$('export').onclick=async()=>{try{let list=await all(),out=[];for(let s of list){let x={...s};for(let k of ['minus','plus'])if(x[k])x[k]={name:x[k].name||'audio',type:x[k].type||'application/octet-stream',data:await blobData(x[k])};out.push(x)}let blob=new Blob([JSON.stringify({format:'my-repertoire-backup-v1',songs:out})],{type:'application/json'});download(blob,'my-repertoire-backup.json');$('backupMsg').textContent='Резервная копия создана.'}catch(e){$('backupMsg').textContent='Не удалось создать копию.'}};
+function blobData(blob){return new Promise((res,rej)=>{let r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(blob)})}
+function dataBlob(x){let [head,b64]=x.data.split(',');let mime=(head.match(/:(.*?);/)||[])[1]||x.type;let bin=atob(b64),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:mime})}
+function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),3000)}
+$('import').onclick=async()=>{let f=$('importFile').files[0];if(!f){$('backupMsg').textContent='Выбери файл резервной копии.';return}try{let data=JSON.parse(await f.text());if(data.format!=='my-repertoire-backup-v1'||!Array.isArray(data.songs))throw Error('bad format');for(let s of data.songs)for(let k of ['minus','plus'])if(s[k]?.data)s[k]=dataBlob(s[k]);for(let s of data.songs)await save(s);await refresh();$('backupMsg').textContent='Библиотека восстановлена.'}catch(e){$('backupMsg').textContent='Файл копии не распознан.'}};
+(async()=>{try{db=await openDB();await refresh()}catch(e){$('empty').textContent='Хранилище недоступно. Открой приложение в Safari через HTTPS.'}})();
+if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(console.warn);
+</script></body></html>
