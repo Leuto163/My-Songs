@@ -36,6 +36,8 @@ footer{color:#777;text-align:center;font-size:11px;padding:25px}
     <button data-view="foreign">🌍 Зарубежные</button>
     <button data-view="learned">✓ Выучено</button>
     <button data-view="tolearn">📖 Выучить</button>
+    <button data-view="lounge">🥂 Lounge</button>
+    <button data-view="jazz">🎷 Jazz</button>
   </div>
   <div class="toolbar">
     <input id="search" placeholder="Поиск по названию или исполнителю…" aria-label="Поиск">
@@ -56,6 +58,7 @@ footer{color:#777;text-align:center;font-size:11px;padding:25px}
     <div class="field"><label>Название песни *</label><input id="title" placeholder="Название"></div>
     <div class="field"><label>Исполнитель</label><input id="artist" placeholder="Исполнитель"></div>
     <div class="field"><label>Язык / категория</label><select id="language"><option value="russian">Русская</option><option value="foreign">Зарубежная</option></select></div>
+    <div class="field"><label>Жанр</label><select id="genre"><option value="">Без жанра</option><option value="lounge">Lounge</option><option value="jazz">Jazz</option></select></div>
     <div class="field"><label>Статус изучения</label><select id="status"><option value="tolearn">Выучить</option><option value="learned">Выучено</option></select></div>
     <div class="field"><label>Тональность</label><input id="key" placeholder="Например, Am"></div>
     <div class="field"><label>Текст песни</label><textarea id="lyrics" placeholder="Вставьте текст песни…"></textarea></div>
@@ -74,37 +77,54 @@ function openDB(){return new Promise((resolve,reject)=>{let r=indexedDB.open(DB,
 function all(){return new Promise((resolve,reject)=>{let r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 function put(song){return new Promise((resolve,reject)=>{let r=db.transaction(STORE,'readwrite').objectStore(STORE).put(song);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
 function del(id){return new Promise((resolve,reject)=>{let r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
-function label(v){return ({russian:'Русские',foreign:'Зарубежные',learned:'Выучено',tolearn:'Выучить'})[v]}
-function visible(s){return currentView==='russian'?s.language==='russian':currentView==='foreign'?s.language==='foreign':currentView==='learned'?s.status==='learned':s.status==='tolearn'}
+function label(v){return ({russian:'Русские',foreign:'Зарубежные',learned:'Выучено',tolearn:'Выучить',lounge:'Lounge',jazz:'Jazz'})[v]}
+function visible(s){
+  if(currentView==='russian')return s.language==='russian';
+  if(currentView==='foreign')return s.language==='foreign';
+  if(currentView==='learned')return s.status==='learned';
+  if(currentView==='tolearn')return s.status==='tolearn';
+  if(currentView==='lounge'||currentView==='jazz')return s.genre===currentView;
+  return true;
+}
 function render(){
- const q=$('search').value.trim().toLocaleLowerCase('ru'); let arr=songs.filter(s=>visible(s)&&(!q||((s.title||'')+' '+(s.artist||'')).toLocaleLowerCase('ru').includes(q)));
- const sort=$('sort').value;
- arr.sort((a,b)=>sort==='new'?(b.created||0)-(a.created||0):sort==='desc'?b.title.localeCompare(a.title,'ru',{sensitivity:'base'}):a.title.localeCompare(b.title,'ru',{sensitivity:'base'}));
- $('list').innerHTML=arr.length?'':'<div class="empty">В этом разделе пока нет песен.<br>Нажмите «＋ Добавить песню».</div>';
- arr.forEach(s=>{
-  const el=document.createElement('article');el.className='song';
-  const title=document.createElement('strong');title.textContent=s.title;el.append(title);
-  const meta=document.createElement('div');meta.className='meta';meta.textContent=[s.artist,s.key,label(s.language),label(s.status)].filter(Boolean).join(' · ');el.append(meta);
-  const actions=document.createElement('div');actions.className='song-actions';
-  const edit=document.createElement('button');edit.className='small';edit.textContent='Изменить';edit.onclick=()=>openEditor(s);actions.append(edit);
-  const move=document.createElement('button');move.className='small gold';move.textContent=s.status==='learned'?'Вернуть в «Выучить»':'Перенести в «Выучено»';move.onclick=async()=>{s.status=s.status==='learned'?'tolearn':'learned';await put(s);refresh()};actions.append(move);
-  if(s.lyrics){const lyric=document.createElement('button');lyric.className='small';lyric.textContent='Текст';lyric.onclick=()=>{let w=window.open('','_blank');if(w){w.document.write('<meta name="viewport" content="width=device-width"><pre style="white-space:pre-wrap;font:16px sans-serif;padding:18px"></pre>');w.document.querySelector('pre').textContent=s.lyrics}};actions.append(lyric)}
-  [['minus','Минусовка'],['plus','Плюсовка']].forEach(([k,t])=>{if(s[k]){let b=document.createElement('button');b.className='small';b.textContent='▶ '+t;b.onclick=()=>{let a=new Audio(URL.createObjectURL(s[k]));a.play()};actions.append(b)}});
-  const remove=document.createElement('button');remove.className='small';remove.textContent='Удалить';remove.onclick=async()=>{if(confirm('Удалить песню «'+s.title+'»?')){await del(s.id);refresh()}};actions.append(remove);
-  el.append(actions);$('list').append(el);
- });
- document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===currentView));
+  const q=$('search').value.trim().toLocaleLowerCase('ru');
+  let arr=songs.filter(s=>visible(s)&&(!q||((s.title||'')+' '+(s.artist||'')).toLocaleLowerCase('ru').includes(q)));
+  const sort=$('sort').value;
+  arr.sort((a,b)=>sort==='new'?(b.created||0)-(a.created||0):sort==='desc'?b.title.localeCompare(a.title,'ru',{sensitivity:'base'}):a.title.localeCompare(b.title,'ru',{sensitivity:'base'}));
+  $('list').innerHTML=arr.length?'':'<div class="empty">В этом разделе пока нет песен.<br>Нажмите «＋ Добавить песню».</div>';
+  arr.forEach(s=>{
+    const el=document.createElement('article');el.className='song';
+    const title=document.createElement('strong');title.textContent=s.title;el.append(title);
+    const meta=document.createElement('div');meta.className='meta';meta.textContent=[s.artist,s.key,label(s.language),label(s.genre),label(s.status)].filter(Boolean).join(' · ');el.append(meta);
+    const actions=document.createElement('div');actions.className='song-actions';
+    const edit=document.createElement('button');edit.className='small';edit.textContent='Изменить';edit.onclick=()=>openEditor(s);actions.append(edit);
+    const move=document.createElement('button');move.className='small gold';move.textContent=s.status==='learned'?'Вернуть в «Выучить»':'Перенести в «Выучено»';move.onclick=async()=>{s.status=s.status==='learned'?'tolearn':'learned';await put(s);refresh()};actions.append(move);
+    if(s.lyrics){const lyric=document.createElement('button');lyric.className='small';lyric.textContent='Текст';lyric.onclick=()=>{let w=window.open('','_blank');if(w){w.document.write('<meta name="viewport" content="width=device-width"><pre style="white-space:pre-wrap;font:16px sans-serif;padding:18px"></pre>');w.document.querySelector('pre').textContent=s.lyrics}};actions.append(lyric)}
+    [['minus','Минусовка'],['plus','Плюсовка']].forEach(([k,t])=>{if(s[k]){let b=document.createElement('button');b.className='small';b.textContent='▶ '+t;b.onclick=()=>{let a=new Audio(URL.createObjectURL(s[k]));a.play()};actions.append(b)}});
+    const remove=document.createElement('button');remove.className='small';remove.textContent='Удалить';remove.onclick=async()=>{if(confirm('Удалить песню «'+s.title+'»?')){await del(s.id);refresh()}};actions.append(remove);
+    el.append(actions);$('list').append(el);
+  });
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===currentView));
 }
 async function refresh(){songs=await all();render()}
-function openEditor(s=null){editing=s;$('editorTitle').textContent=s?'Изменить песню':'Новая песня';$('title').value=s?.title||'';$('artist').value=s?.artist||'';$('language').value=s?.language|| (currentView==='foreign'?'foreign':'russian');$('status').value=s?.status||(currentView==='learned'?'learned':'tolearn');$('key').value=s?.key||'';$('lyrics').value=s?.lyrics||'';$('minus').value='';$('plus').value='';$('editor').classList.remove('hidden');$('editor').scrollIntoView({behavior:'smooth'});}
+function openEditor(s=null){
+  editing=s;$('editorTitle').textContent=s?'Изменить песню':'Новая песня';
+  $('title').value=s?.title||'';$('artist').value=s?.artist||'';
+  $('language').value=s?.language||(currentView==='foreign'?'foreign':'russian');
+  $('genre').value=s?.genre||(currentView==='lounge'||currentView==='jazz'?currentView:'');
+  $('status').value=s?.status||(currentView==='learned'?'learned':'tolearn');
+  $('key').value=s?.key||'';$('lyrics').value=s?.lyrics||'';$('minus').value='';$('plus').value='';
+  $('editor').classList.remove('hidden');$('editor').scrollIntoView({behavior:'smooth'});
+}
 function closeEditor(){$('editor').classList.add('hidden');editing=null}
 $('nav').addEventListener('click',e=>{let b=e.target.closest('button[data-view]');if(b){currentView=b.dataset.view;render()}});
 $('search').addEventListener('input',render);$('sort').addEventListener('change',render);$('add').onclick=()=>openEditor();$('cancel').onclick=closeEditor;
-$('save').onclick=async()=>{let title=$('title').value.trim();if(!title){alert('Введите название песни');return}
- let s=editing?{...editing}:{id:crypto.randomUUID(),created:Date.now()};
- Object.assign(s,{title,artist:$('artist').value.trim(),language:$('language').value,status:$('status').value,key:$('key').value.trim(),lyrics:$('lyrics').value});
- if($('minus').files[0])s.minus=$('minus').files[0];if($('plus').files[0])s.plus=$('plus').files[0];
- await put(s);closeEditor();await refresh();
+$('save').onclick=async()=>{
+  let title=$('title').value.trim();if(!title){alert('Введите название песни');return}
+  let s=editing?{...editing}:{id:crypto.randomUUID(),created:Date.now()};
+  Object.assign(s,{title,artist:$('artist').value.trim(),language:$('language').value,genre:$('genre').value,status:$('status').value,key:$('key').value.trim(),lyrics:$('lyrics').value});
+  if($('minus').files[0])s.minus=$('minus').files[0];if($('plus').files[0])s.plus=$('plus').files[0];
+  await put(s);closeEditor();await refresh();
 };
 $('export').onclick=async()=>{let data=await all();let blob=new Blob([JSON.stringify(data)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='my-repertoire-backup.json';a.click();URL.revokeObjectURL(a.href)};
 $('import').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let data=JSON.parse(await f.text());if(!Array.isArray(data))throw Error();for(let s of data)await put(s);await refresh();alert('Копия импортирована')}catch{alert('Не удалось прочитать файл копии')}e.target.value=''};
