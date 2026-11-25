@@ -77,6 +77,9 @@ function openDB(){return new Promise((resolve,reject)=>{let r=indexedDB.open(DB,
 function all(){return new Promise((resolve,reject)=>{let r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 function put(song){return new Promise((resolve,reject)=>{let r=db.transaction(STORE,'readwrite').objectStore(STORE).put(song);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
 function del(id){return new Promise((resolve,reject)=>{let r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
+function escapeHtml(value){
+  return String(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
 function label(v){return ({russian:'Русские',foreign:'Зарубежные',learned:'Выучено',tolearn:'Выучить',lounge:'Lounge',jazz:'Jazz'})[v]}
 function visible(s){
   if(currentView==='russian')return s.language==='russian';
@@ -99,7 +102,46 @@ function render(){
     const actions=document.createElement('div');actions.className='song-actions';
     const edit=document.createElement('button');edit.className='small';edit.textContent='Изменить';edit.onclick=()=>openEditor(s);actions.append(edit);
     const move=document.createElement('button');move.className='small gold';move.textContent=s.status==='learned'?'Вернуть в «Выучить»':'Перенести в «Выучено»';move.onclick=async()=>{s.status=s.status==='learned'?'tolearn':'learned';await put(s);refresh()};actions.append(move);
-    if(s.lyrics){const lyric=document.createElement('button');lyric.className='small';lyric.textContent='Текст';lyric.onclick=()=>{let w=window.open('','_blank');if(w){w.document.write('<meta name="viewport" content="width=device-width"><pre style="white-space:pre-wrap;font:16px sans-serif;padding:18px"></pre>');w.document.querySelector('pre').textContent=s.lyrics}};actions.append(lyric)}
+    if(s.lyrics){
+      const lyric=document.createElement('button');
+      lyric.className='small';
+      lyric.textContent='Текст';
+      lyric.onclick=()=>{
+        const w=window.open('','_blank');
+        if(!w)return;
+        w.document.write(`<!doctype html>
+          <html lang="ru">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <meta name="theme-color" content="#101010">
+            <title>${escapeHtml(s.title || 'Текст песни')}</title>
+            <style>
+              :root{color-scheme:dark}
+              *{box-sizing:border-box}
+              body{margin:0;min-height:100vh;background:#101010;color:#f5f1e8;
+                font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+              main{max-width:760px;margin:auto;padding:20px 16px 40px}
+              .back{display:inline-flex;align-items:center;gap:8px;padding:11px 15px;
+                border:1px solid #594a2d;border-radius:12px;background:#302819;
+                color:#d5b56d;font:600 15px inherit;cursor:pointer}
+              h1{margin:25px 0 18px;color:#d5b56d;font-size:23px;line-height:1.3}
+              pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;
+                font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+            </style>
+          </head>
+          <body><main>
+            <button class="back" id="back" type="button">← Назад к песням</button>
+            <h1 id="song-title"></h1>
+            <pre id="lyrics"></pre>
+          </main></body></html>`);
+        w.document.close();
+        w.document.getElementById('song-title').textContent=s.title||'Текст песни';
+        w.document.getElementById('lyrics').textContent=s.lyrics;
+        w.document.getElementById('back').addEventListener('click',()=>w.close());
+      };
+      actions.append(lyric);
+    }
     [['minus','Минусовка'],['plus','Плюсовка']].forEach(([k,t])=>{if(s[k]){let b=document.createElement('button');b.className='small';b.textContent='▶ '+t;b.onclick=()=>{let a=new Audio(URL.createObjectURL(s[k]));a.play()};actions.append(b)}});
     const remove=document.createElement('button');remove.className='small';remove.textContent='Удалить';remove.onclick=async()=>{if(confirm('Удалить песню «'+s.title+'»?')){await del(s.id);refresh()}};actions.append(remove);
     el.append(actions);$('list').append(el);
