@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<title>MY REPERTOIRE</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--bg:#101010;--panel:#1b1b1b;--gold:#d5b56d;--muted:#b8b1a2;--line:#594a2d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#f5f1e8;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{padding:28px 18px 16px;text-align:center;border-bottom:1px solid var(--line)}
+h1{margin:0;color:var(--gold);letter-spacing:3px;font-size:25px}header p{color:var(--muted);font-size:11px;letter-spacing:2px;margin:8px 0 0}
+main{max-width:760px;margin:auto;padding:16px}
+.nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:15px}
+.nav button,.action,.small{background:var(--panel);border:1px solid var(--line);color:var(--gold);border-radius:12px;padding:13px 10px;font-weight:650}
+.nav button.active{background:#3a3020;border-color:var(--gold)}
+button{cursor:pointer;font:inherit}.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+input,textarea,select{width:100%;background:#202020;color:#fff;border:1px solid #5a513e;border-radius:10px;padding:12px;font:inherit}
+textarea{min-height:120px;resize:vertical}.field{margin:11px 0}.field label{display:block;color:var(--muted);font-size:13px;margin:0 0 6px}
+.song{background:var(--panel);border:1px solid #393124;border-radius:12px;padding:13px;margin:9px 0}
+.song strong{display:block;color:#f7e5bd;font-size:16px}.meta{color:var(--muted);font-size:12px;margin-top:5px}
+.song-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.small{padding:8px 10px;font-size:12px}
+.gold{background:#302819;color:var(--gold);border-color:var(--gold)}
+#editor{border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:16px;background:#171717}
+.hidden{display:none}.empty{color:var(--muted);text-align:center;padding:28px 10px}
+.note{color:var(--muted);font-size:12px;line-height:1.5}.file{font-size:13px}
+footer{color:#777;text-align:center;font-size:11px;padding:25px}
+</style>
+</head>
+<body>
+<header><h1>MY REPERTOIRE</h1><p>МОЙ МУЗЫКАЛЬНЫЙ РЕПЕРТУАР</p></header>
+<main>
+  <div class="nav" id="nav">
+    <button data-view="russian" class="active">🇷🇺 Русские</button>
+    <button data-view="foreign">🌍 Зарубежные</button>
+    <button data-view="learned">✓ Выучено</button>
+    <button data-view="tolearn">📖 Выучить</button>
+    <button data-view="lounge">🥂 Lounge</button>
+    <button data-view="jazz">🎷 Jazz</button>
+  </div>
+  <div class="toolbar">
+    <input id="search" placeholder="Поиск по названию или исполнителю…" aria-label="Поиск">
+    <select id="sort" style="max-width:190px" aria-label="Сортировка">
+      <option value="asc">По алфавиту: А → Я</option>
+      <option value="desc">По алфавиту: Я → А</option>
+      <option value="new">Сначала новые</option>
+    </select>
+  </div>
+  <div class="toolbar">
+    <button class="action gold" id="add">＋ Добавить песню</button>
+    <button class="action" id="export">Экспорт копии</button>
+    <label class="action file">Импорт копии<input id="import" type="file" accept="application/json" hidden></label>
+  </div>
+  <div id="list"></div>
+  <section id="editor" class="hidden">
+    <h3 id="editorTitle" style="color:var(--gold);margin-top:0">Новая песня</h3>
+    <div class="field"><label>Название песни *</label><input id="title" placeholder="Название"></div>
+    <div class="field"><label>Исполнитель</label><input id="artist" placeholder="Исполнитель"></div>
+    <div class="field"><label>Язык / категория</label><select id="language"><option value="russian">Русская</option><option value="foreign">Зарубежная</option></select></div>
+    <div class="field"><label>Жанр</label><select id="genre"><option value="">Без жанра</option><option value="lounge">Lounge</option><option value="jazz">Jazz</option></select></div>
+    <div class="field"><label>Статус изучения</label><select id="status"><option value="tolearn">Выучить</option><option value="learned">Выучено</option></select></div>
+    <div class="field"><label>Тональность</label><input id="key" placeholder="Например, Am"></div>
+    <div class="field"><label>Текст песни</label><textarea id="lyrics" placeholder="Вставьте текст песни…"></textarea></div>
+    <div class="field"><label>Минусовка (аудиофайл)</label><input id="minus" type="file" accept="audio/*"></div>
+    <div class="field"><label>Плюсовка (аудиофайл)</label><input id="plus" type="file" accept="audio/*"></div>
+    <p class="note">Аудиофайлы и тексты сохраняются на этом iPhone в браузере. Делайте резервную копию через «Экспорт копии».</p>
+    <div class="toolbar"><button class="action gold" id="save">Сохранить</button><button class="action" id="cancel">Отмена</button></div>
+  </section>
+</main>
+<footer>Данные хранятся локально на устройстве</footer>
+<script>
+const DB='my-repertoire-v2', STORE='songs';
+let db, currentView='russian', editing=null, songs=[];
+const $=id=>document.getElementById(id);
+function openDB(){return new Promise((resolve,reject)=>{let r=indexedDB.open(DB,1);r.onupgradeneeded=()=>r.result.createObjectStore(STORE,{keyPath:'id'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+function all(){return new Promise((resolve,reject)=>{let r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+function put(song){return new Promise((resolve,reject)=>{let r=db.transaction(STORE,'readwrite').objectStore(STORE).put(song);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
+function del(id){return new Promise((resolve,reject)=>{let r=db.transaction(STORE,'readwrite').objectStore(STORE).delete(id);r.onsuccess=resolve;r.onerror=()=>reject(r.error)})}
+function escapeHtml(value){
+  return String(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function label(v){return ({russian:'Русские',foreign:'Зарубежные',learned:'Выучено',tolearn:'Выучить',lounge:'Lounge',jazz:'Jazz'})[v]}
+function visible(s){
+  if(currentView==='russian')return s.language==='russian';
+  if(currentView==='foreign')return s.language==='foreign';
+  if(currentView==='learned')return s.status==='learned';
+  if(currentView==='tolearn')return s.status==='tolearn';
+  if(currentView==='lounge'||currentView==='jazz')return s.genre===currentView;
+  return true;
+}
+function render(){
+  const q=$('search').value.trim().toLocaleLowerCase('ru');
+  let arr=songs.filter(s=>visible(s)&&(!q||((s.title||'')+' '+(s.artist||'')).toLocaleLowerCase('ru').includes(q)));
+  const sort=$('sort').value;
+  arr.sort((a,b)=>sort==='new'?(b.created||0)-(a.created||0):sort==='desc'?b.title.localeCompare(a.title,'ru',{sensitivity:'base'}):a.title.localeCompare(b.title,'ru',{sensitivity:'base'}));
+  $('list').innerHTML=arr.length?'':'<div class="empty">В этом разделе пока нет песен.<br>Нажмите «＋ Добавить песню».</div>';
+  arr.forEach(s=>{
+    const el=document.createElement('article');el.className='song';
+    const title=document.createElement('strong');title.textContent=s.title;el.append(title);
+    const meta=document.createElement('div');meta.className='meta';meta.textContent=[s.artist,s.key,label(s.language),label(s.genre),label(s.status)].filter(Boolean).join(' · ');el.append(meta);
+    const actions=document.createElement('div');actions.className='song-actions';
+    const edit=document.createElement('button');edit.className='small';edit.textContent='Изменить';edit.onclick=()=>openEditor(s);actions.append(edit);
+    const move=document.createElement('button');move.className='small gold';move.textContent=s.status==='learned'?'Вернуть в «Выучить»':'Перенести в «Выучено»';move.onclick=async()=>{s.status=s.status==='learned'?'tolearn':'learned';await put(s);refresh()};actions.append(move);
+    if(s.lyrics){
+      const lyric=document.createElement('button');
+      lyric.className='small';
+      lyric.textContent='Текст';
+      lyric.onclick=()=>{
+        const w=window.open('','_blank');
+        if(!w)return;
+        w.document.write(`<!doctype html>
+          <html lang="ru">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <meta name="theme-color" content="#101010">
+            <title>${escapeHtml(s.title || 'Текст песни')}</title>
+            <style>
+              :root{color-scheme:dark}
+              *{box-sizing:border-box}
+              body{margin:0;min-height:100vh;background:#101010;color:#f5f1e8;
+                font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+              main{max-width:760px;margin:auto;padding:20px 16px 40px}
+              .back{display:inline-flex;align-items:center;gap:8px;padding:11px 15px;
+                border:1px solid #594a2d;border-radius:12px;background:#302819;
+                color:#d5b56d;font:600 15px inherit;cursor:pointer}
+              h1{margin:25px 0 18px;color:#d5b56d;font-size:23px;line-height:1.3}
+              .controls{position:sticky;top:0;z-index:2;display:flex;align-items:center;
+                gap:9px;flex-wrap:wrap;padding:10px 0;background:rgba(16,16,16,.96);
+                border-bottom:1px solid #594a2d;margin:14px 0}
+              .control{border:1px solid #594a2d;border-radius:10px;background:#302819;
+                color:#d5b56d;padding:9px 12px;font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+              .speed{display:flex;align-items:center;gap:7px;color:#b8b1a2;font-size:13px}
+              input[type=range]{width:95px;accent-color:#d5b56d}
+              pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;
+                font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+            </style>
+          </head>
+          <body><main>
+            <button class="back" id="back" type="button">← Назад к песням</button>
+            <h1 id="song-title"></h1>
+            <div class="controls">
+              <button class="control" id="toggle-scroll" type="button">▶ Начать</button>
+              <button class="control" id="to-top" type="button">↑ В начало</button>
+              <label class="speed">Скорость <input id="scroll-speed" type="range" min="1" max="5" value="2"><span id="speed-value">2</span></label>
+            </div>
+            <pre id="lyrics"></pre>
+          </main>
+          <script>
+            let scrolling=false, scrollTimer=null;
+            const toggle=document.getElementById('toggle-scroll');
+            const speed=document.getElementById('scroll-speed');
+            const speedValue=document.getElementById('speed-value');
+            function stopScroll(){
+              scrolling=false;
+              if(scrollTimer!==null){clearInterval(scrollTimer);scrollTimer=null;}
+              toggle.textContent='▶ Начать';
+            }
+            function startScroll(){
+              if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-2){
+                window.scrollTo({top:0,behavior:'smooth'});
+              }
+              scrolling=true;
+              toggle.textContent='⏸ Пауза';
+              scrollTimer=setInterval(()=>{
+                window.scrollBy(0,Number(speed.value)*0.45);
+                if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-2)stopScroll();
+              },30);
+            }
+            toggle.addEventListener('click',()=>scrolling?stopScroll():startScroll());
+            speed.addEventListener('input',()=>{speedValue.textContent=speed.value;});
+            document.getElementById('to-top').addEventListener('click',()=>{
+              stopScroll();window.scrollTo({top:0,behavior:'smooth'});
+            });
+            document.getElementById('back').addEventListener('click',()=>{stopScroll();window.close();});
+          <\/script></body></html>`);
+        w.document.close();
+        w.document.getElementById('song-title').textContent=s.title||'Текст песни';
+        w.document.getElementById('lyrics').textContent=s.lyrics;
+        w.document.getElementById('back').addEventListener('click',()=>w.close());
+      };
+      actions.append(lyric);
+    }
+    [['minus','Минусовка'],['plus','Плюсовка']].forEach(([k,t])=>{if(s[k]){let b=document.createElement('button');b.className='small';b.textContent='▶ '+t;b.onclick=()=>{let a=new Audio(URL.createObjectURL(s[k]));a.play()};actions.append(b)}});
+    const remove=document.createElement('button');remove.className='small';remove.textContent='Удалить';remove.onclick=async()=>{if(confirm('Удалить песню «'+s.title+'»?')){await del(s.id);refresh()}};actions.append(remove);
+    el.append(actions);$('list').append(el);
+  });
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===currentView));
+}
+async function refresh(){songs=await all();render()}
+function openEditor(s=null){
+  editing=s;$('editorTitle').textContent=s?'Изменить песню':'Новая песня';
+  $('title').value=s?.title||'';$('artist').value=s?.artist||'';
+  $('language').value=s?.language||(currentView==='foreign'?'foreign':'russian');
+  $('genre').value=s?.genre||(currentView==='lounge'||currentView==='jazz'?currentView:'');
+  $('status').value=s?.status||(currentView==='learned'?'learned':'tolearn');
+  $('key').value=s?.key||'';$('lyrics').value=s?.lyrics||'';$('minus').value='';$('plus').value='';
+  $('editor').classList.remove('hidden');$('editor').scrollIntoView({behavior:'smooth'});
+}
+function closeEditor(){$('editor').classList.add('hidden');editing=null}
+$('nav').addEventListener('click',e=>{let b=e.target.closest('button[data-view]');if(b){currentView=b.dataset.view;render()}});
+$('search').addEventListener('input',render);$('sort').addEventListener('change',render);$('add').onclick=()=>openEditor();$('cancel').onclick=closeEditor;
+$('save').onclick=async()=>{
+  let title=$('title').value.trim();if(!title){alert('Введите название песни');return}
+  let s=editing?{...editing}:{id:crypto.randomUUID(),created:Date.now()};
+  Object.assign(s,{title,artist:$('artist').value.trim(),language:$('language').value,genre:$('genre').value,status:$('status').value,key:$('key').value.trim(),lyrics:$('lyrics').value});
+  if($('minus').files[0])s.minus=$('minus').files[0];if($('plus').files[0])s.plus=$('plus').files[0];
+  await put(s);closeEditor();await refresh();
+};
+$('export').onclick=async()=>{let data=await all();let blob=new Blob([JSON.stringify(data)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='my-repertoire-backup.json';a.click();URL.revokeObjectURL(a.href)};
+$('import').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let data=JSON.parse(await f.text());if(!Array.isArray(data))throw Error();for(let s of data)await put(s);await refresh();alert('Копия импортирована')}catch{alert('Не удалось прочитать файл копии')}e.target.value=''};
+(async()=>{if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});db=await openDB();await refresh()})().catch(e=>alert('Ошибка запуска: '+e.message));
+</script>
+</body></html>
