@@ -126,6 +126,13 @@ function render(){
                 border:1px solid #594a2d;border-radius:12px;background:#302819;
                 color:#d5b56d;font:600 15px inherit;cursor:pointer}
               h1{margin:25px 0 18px;color:#d5b56d;font-size:23px;line-height:1.3}
+              .controls{position:sticky;top:0;z-index:2;display:flex;align-items:center;
+                gap:9px;flex-wrap:wrap;padding:10px 0;background:rgba(16,16,16,.96);
+                border-bottom:1px solid #594a2d;margin:14px 0}
+              .control{border:1px solid #594a2d;border-radius:10px;background:#302819;
+                color:#d5b56d;padding:9px 12px;font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+              .speed{display:flex;align-items:center;gap:7px;color:#b8b1a2;font-size:13px}
+              input[type=range]{width:95px;accent-color:#d5b56d}
               pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;
                 font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
             </style>
@@ -133,8 +140,41 @@ function render(){
           <body><main>
             <button class="back" id="back" type="button">← Назад к песням</button>
             <h1 id="song-title"></h1>
+            <div class="controls">
+              <button class="control" id="toggle-scroll" type="button">▶ Начать</button>
+              <button class="control" id="to-top" type="button">↑ В начало</button>
+              <label class="speed">Скорость <input id="scroll-speed" type="range" min="1" max="5" value="2"><span id="speed-value">2</span></label>
+            </div>
             <pre id="lyrics"></pre>
-          </main></body></html>`);
+          </main>
+          <script>
+            let scrolling=false, scrollTimer=null;
+            const toggle=document.getElementById('toggle-scroll');
+            const speed=document.getElementById('scroll-speed');
+            const speedValue=document.getElementById('speed-value');
+            function stopScroll(){
+              scrolling=false;
+              if(scrollTimer!==null){clearInterval(scrollTimer);scrollTimer=null;}
+              toggle.textContent='▶ Начать';
+            }
+            function startScroll(){
+              if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-2){
+                window.scrollTo({top:0,behavior:'smooth'});
+              }
+              scrolling=true;
+              toggle.textContent='⏸ Пауза';
+              scrollTimer=setInterval(()=>{
+                window.scrollBy(0,Number(speed.value)*0.45);
+                if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-2)stopScroll();
+              },30);
+            }
+            toggle.addEventListener('click',()=>scrolling?stopScroll():startScroll());
+            speed.addEventListener('input',()=>{speedValue.textContent=speed.value;});
+            document.getElementById('to-top').addEventListener('click',()=>{
+              stopScroll();window.scrollTo({top:0,behavior:'smooth'});
+            });
+            document.getElementById('back').addEventListener('click',()=>{stopScroll();window.close();});
+          <\/script></body></html>`);
         w.document.close();
         w.document.getElementById('song-title').textContent=s.title||'Текст песни';
         w.document.getElementById('lyrics').textContent=s.lyrics;
